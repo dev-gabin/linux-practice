@@ -1,1 +1,1 @@
-#Linux Pracice
+# Linux practice
