@@ -1,1 +1,1 @@
-#LInuc Pracice
+#Linux Pracice
