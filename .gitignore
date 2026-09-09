@@ -1,0 +1,7 @@
+*.o
+hserver
+hclient
+hello_server
+hello_client
+core
+core.*
