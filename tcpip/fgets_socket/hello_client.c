@@ -4,7 +4,8 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
-
+#include <sys/select.h>
+#include <sys/time.h>
 void error_handling(char *message);
 
 int main(int argc, char* argv[])
@@ -12,6 +13,10 @@ int main(int argc, char* argv[])
 	int sock;
 	struct sockaddr_in serv_addr;
 	char message[80];
+
+	fd_set reads, temps;
+	struct timeval timeout;
+	int result;
 	int str_len;
 	
 	if(argc!=3){
@@ -30,24 +35,59 @@ int main(int argc, char* argv[])
 		
 	if(connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr))<0) 
 		error_handling("connect() error!");
+	FD_ZERO(&reads);
+	FD_SET(fileno(stdin), &reads);
+	FD_SET(sock, &reads);
 
 	do {
-		fputs("문자열을 입력하세요! : ",stdout);
-		fgets(message, sizeof(message), stdin);
-		message[strlen(message)-1] = '\0';  //'\n' 제거 
-		if(!strcmp(message,"quit"))  //"quit" 종료
-			break;
-		str_len=write(sock, message, strlen(message));
-		if(str_len < 0)
-				break;
-		str_len=read(sock, message, sizeof(message)-1);
-		if(str_len == 0)	//상대방 소켓 종료
-				break;
-		message[str_len] = '\0';
-		if(str_len<0)
-			error_handling("read() error!");
+		temps=reads;
 
-		printf("Message from server: %s(%d) \n", message,str_len);  
+		timeout.tv_sec=5;
+		timeout.tv_usec=5000;
+
+		result=select(sock+1, &temps, 0, 0, &timeout);
+
+		
+		if(result == -1)
+		{
+			puts("selet() error!");
+			break;
+		}
+		else if(result == 0)
+		{	
+			puts("Time -out!");
+		}
+		else
+		{
+			if (FD_ISSET(fileno(stdin), &temps))
+	
+			{
+				fputs("문자열을 입력하세요! : ",stdout);
+				fgets(message, sizeof(message), stdin);
+				message[strlen(message)-1] = '\0';  //'\n' 제거 
+				if(!strcmp(message,"quit"))  //"quit" 종료
+					break;
+				
+				str_len=write(sock, message, strlen(message));
+				
+				if(str_len < 0)
+					break;
+		}
+		
+		else if (FD_ISSET(sock, &temps))
+		{
+			str_len=read(sock, message, sizeof(message)-1);
+			if(str_len == 0)	//상대방 소켓 종료
+				break;
+		
+			message[str_len] = '\0';
+		
+			if(str_len<0)
+				error_handling("read() error!");
+	
+			printf("Message from server: %s(%d) \n", message,str_len); 
+		}
+	 }	
 	} while(1);
 
 	close(sock);
